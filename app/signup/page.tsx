@@ -30,7 +30,12 @@ import type { UserRole } from "@/lib/db-types";
 import axios from "axios";
 
 export default function SignupPage() {
-  const Backend_URL = process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL;
+
+  const Backend_URL =
+    process.env.NODE_ENV === "production"
+      ? process.env.NEXT_PUBLIC_DEVELOPMENT_DEPLOYED_BACKEND_URL
+      : process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL;
+      
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",

@@ -40,6 +40,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+  
+const Backend_URL = process.env.NODE_ENV === 'production' 
+  ? process.env.NEXT_PUBLIC_DEVELOPMENT_DEPLOYED_BACKEND_URL
+  : process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL;
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -62,7 +67,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL}/api/auth/login`,
+      `${Backend_URL}/api/auth/login`,
       {
         email: formData.email,
         password: formData.password,
