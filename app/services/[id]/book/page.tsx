@@ -35,14 +35,15 @@ export default function BookServicePage() {
       router.push(`/login?redirect=/services/${params.id}/book`)
       return
     }
+    
 
-    const foundService = getServiceById(params.id as string)
+     const foundService = getServiceById(params.id as string)
     if (foundService) {
       setService(foundService)
     } else {
       router.push("/services")
     }
-  }, [isAuthenticated, params.id, router])
+   }, [isAuthenticated, params.id, router])
 
   const handleUseCurrentLocation = async () => {
     setIsLoading(true)

@@ -6,6 +6,7 @@ import Header from "@/components/header"
 import { useAuth } from "@/contexts/auth-context"
 import { useBookings } from "@/contexts/booking-context"
 import { CreditCard, Building2, Loader2, Smartphone, Wallet, Bitcoin } from "lucide-react"
+import PayPalCheckout from "@/components/PayPalCheckout" // <-- import PayPal component
 
 type PaymentGateway = "stripe" | "razorpay" | "gpay" | "paypal" | "crypto"
 
@@ -34,26 +35,23 @@ export default function PaymentPage() {
     setBooking(bookingData)
   }, [isAuthenticated, params.id, router, getBookingById])
 
-  const handlePayment = async () => {
+  const handleOtherPayments = async () => {
     if (!booking) return
-
     setIsProcessing(true)
     setError("")
 
     try {
-      // Simulate payment processing
+      // Simulate Stripe, Razorpay, GPay, Crypto
       await new Promise((resolve) => setTimeout(resolve, 2500))
-
       updateBooking(booking.id, {
         status: "confirmed",
         payment_method: selectedGateway,
         payment_status: "paid",
       })
-
       router.push(`/booking/${params.id}/success`)
-    } catch (err) {
-      console.error("[v0] Payment error:", err)
-      setError("Payment processing failed. Please try again.")
+    } catch (err: any) {
+      console.error(err)
+      setError("Payment failed. Please try again.")
       setIsProcessing(false)
     }
   }
@@ -91,15 +89,7 @@ export default function PaymentPage() {
 
             <div className="space-y-4 mb-8">
               {/* Stripe */}
-              <button
-                onClick={() => setSelectedGateway("stripe")}
-                disabled={isProcessing}
-                className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  selectedGateway === "stripe"
-                    ? "border-[#FF6B35] bg-[#FF6B35]/5"
-                    : "border-neutral-300 hover:border-neutral-400"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
+              <button onClick={() => setSelectedGateway("stripe")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "stripe" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
                 <div className="flex items-center gap-4">
                   <CreditCard className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -110,15 +100,7 @@ export default function PaymentPage() {
               </button>
 
               {/* Razorpay */}
-              <button
-                onClick={() => setSelectedGateway("razorpay")}
-                disabled={isProcessing}
-                className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  selectedGateway === "razorpay"
-                    ? "border-[#FF6B35] bg-[#FF6B35]/5"
-                    : "border-neutral-300 hover:border-neutral-400"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
+              <button onClick={() => setSelectedGateway("razorpay")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "razorpay" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
                 <div className="flex items-center gap-4">
                   <Building2 className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -129,15 +111,7 @@ export default function PaymentPage() {
               </button>
 
               {/* Google Pay */}
-              <button
-                onClick={() => setSelectedGateway("gpay")}
-                disabled={isProcessing}
-                className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  selectedGateway === "gpay"
-                    ? "border-[#FF6B35] bg-[#FF6B35]/5"
-                    : "border-neutral-300 hover:border-neutral-400"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
+              <button onClick={() => setSelectedGateway("gpay")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "gpay" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
                 <div className="flex items-center gap-4">
                   <Smartphone className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -148,15 +122,7 @@ export default function PaymentPage() {
               </button>
 
               {/* PayPal */}
-              <button
-                onClick={() => setSelectedGateway("paypal")}
-                disabled={isProcessing}
-                className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  selectedGateway === "paypal"
-                    ? "border-[#FF6B35] bg-[#FF6B35]/5"
-                    : "border-neutral-300 hover:border-neutral-400"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
+              <button onClick={() => setSelectedGateway("paypal")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "paypal" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
                 <div className="flex items-center gap-4">
                   <Wallet className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -167,15 +133,7 @@ export default function PaymentPage() {
               </button>
 
               {/* Cryptocurrency */}
-              <button
-                onClick={() => setSelectedGateway("crypto")}
-                disabled={isProcessing}
-                className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  selectedGateway === "crypto"
-                    ? "border-[#FF6B35] bg-[#FF6B35]/5"
-                    : "border-neutral-300 hover:border-neutral-400"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
+              <button onClick={() => setSelectedGateway("crypto")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "crypto" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
                 <div className="flex items-center gap-4">
                   <Bitcoin className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -185,98 +143,17 @@ export default function PaymentPage() {
                 </div>
               </button>
             </div>
+            {/* amount={booking.total_amount + 5} */}
 
-            {/* Crypto Selection */}
-            {selectedGateway === "crypto" && (
-              <div className="mb-8 p-4 bg-neutral-50 rounded-xl">
-                <h3 className="font-bold mb-4">Select Cryptocurrency</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => setSelectedCrypto("bitcoin")}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      selectedCrypto === "bitcoin"
-                        ? "border-[#FF6B35] bg-white"
-                        : "border-neutral-300 hover:border-neutral-400"
-                    }`}
-                  >
-                    <div className="font-bold">Bitcoin (BTC)</div>
-                    <div className="text-sm text-neutral-600">≈ 0.0032 BTC</div>
-                  </button>
-                  <button
-                    onClick={() => setSelectedCrypto("ethereum")}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      selectedCrypto === "ethereum"
-                        ? "border-[#FF6B35] bg-white"
-                        : "border-neutral-300 hover:border-neutral-400"
-                    }`}
-                  >
-                    <div className="font-bold">Ethereum (ETH)</div>
-                    <div className="text-sm text-neutral-600">≈ 0.065 ETH</div>
-                  </button>
-                </div>
-              </div>
+            {/* Pay Button / PayPal */}
+            {selectedGateway === "paypal" ? (
+              <PayPalCheckout uid={booking.user_id} amount={booking.total_amount}
+              bookingId={booking.id}  />
+            ) : (
+              <button onClick={handleOtherPayments} disabled={isProcessing} className="w-full px-8 py-4 bg-[#FF6B35] text-white font-medium rounded-full transition-all duration-300 hover:bg-[#ff5722] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                {isProcessing ? "Processing..." : `Pay with ${selectedGateway}`}
+              </button>
             )}
-
-            <div className="bg-neutral-50 rounded-xl p-6 mb-6">
-              <h3 className="font-bold mb-4">Payment Summary</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">Service:</span>
-                  <span className="font-medium">{booking.service_title}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">Service Fee:</span>
-                  <span className="font-medium">${booking.total_amount}.00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">Processing Fee:</span>
-                  <span className="font-medium">$5.00</span>
-                </div>
-                <div className="border-t border-neutral-300 pt-2 mt-2 flex justify-between">
-                  <span className="font-bold">Total:</span>
-                  <span className="font-bold text-[#FF6B35]">
-                    ${(booking.total_amount + 5).toFixed(2)} {booking.currency}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={handlePayment}
-              disabled={isProcessing}
-              className="w-full px-8 py-4 bg-[#FF6B35] text-white font-medium rounded-full transition-all duration-300 hover:bg-[#ff5722] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Processing Payment...
-                </>
-              ) : (
-                `Pay ${
-                  selectedGateway === "stripe"
-                    ? "with Stripe"
-                    : selectedGateway === "razorpay"
-                      ? "with Razorpay"
-                      : selectedGateway === "gpay"
-                        ? "with Google Pay"
-                        : selectedGateway === "paypal"
-                          ? "with PayPal"
-                          : `with ${selectedCrypto === "bitcoin" ? "Bitcoin" : "Ethereum"}`
-                }`
-              )}
-            </button>
-
-            <p className="text-xs text-neutral-500 text-center mt-4">
-              🔒 Your payment is secure and encrypted. We never store your payment information.
-            </p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-            <p className="font-semibold mb-2">💡 Demo Mode</p>
-            <p>
-              This is a demonstration of the payment flow with multiple international gateways. All payments are
-              simulated and no real transactions occur.
-            </p>
           </div>
         </div>
       </main>
