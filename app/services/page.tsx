@@ -33,6 +33,11 @@ const iconMap: Record<string, React.ElementType> = {
   "it-support": Laptop,
 }
 
+const Backend_URL =
+    process.env.NODE_ENV === "production"
+      ? process.env.NEXT_PUBLIC_DEVELOPMENT_DEPLOYED_BACKEND_URL
+      : process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL;
+
 export default function ServicesPage() {
   const [services, setServices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,7 +46,7 @@ export default function ServicesPage() {
  useEffect(() => {
   async function fetchServices() {
     try {
-      const { data } = await axios.get("http://localhost:5000/api/services")
+      const { data } = await axios.get(`${Backend_URL}/api/services`)
       const servicesArray = Array.isArray(data) ? data : Array.isArray(data.default) ? data.default : []
       setServices(servicesArray)
     } catch (err: any) {
