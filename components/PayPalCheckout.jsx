@@ -108,7 +108,7 @@ function PayPalCheckout({ uid, amount, bookingId }) {
               console.log("📡 Capturing payment...");
 
               const res = await axios.post(
-                `${API_BASE_URL}/paypal/capture-order`,
+                `${Backend_URL}/paypal/capture-order`,
                 {
                   orderId: data.orderID,
                   uid,
