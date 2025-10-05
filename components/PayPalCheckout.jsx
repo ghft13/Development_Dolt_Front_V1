@@ -18,7 +18,7 @@ function PayPalCheckout({ uid, amount, bookingId }) {
     uid,
     amount,
     bookingId,
-    API_BASE_URL,
+    Backend_URL,
     clientId:
       process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID?.substring(0, 10) + "...",
   });
