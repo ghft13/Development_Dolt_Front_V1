@@ -14,11 +14,15 @@ function PayPalCheckout({ uid, amount, bookingId }) {
       ? process.env.NEXT_PUBLIC_DEVELOPMENT_DEPLOYED_BACKEND_URL
       : process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL;
 
+  // Check if we're in a popup window
+  const isPopup = typeof window !== 'undefined' && window.opener && window.opener !== window;
+
   console.log("🔧 PayPal Config:", {
     uid,
     amount,
     bookingId,
     Backend_URL,
+    isPopup,
     clientId:
       process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID?.substring(0, 10) + "...",
   });
@@ -94,6 +98,15 @@ function PayPalCheckout({ uid, amount, bookingId }) {
                 err.message ||
                 "Failed to create order";
               setError(errorMsg);
+              
+              // Send error to parent window if in popup
+              if (isPopup && window.opener) {
+                window.opener.postMessage({
+                  type: 'PAYPAL_ERROR',
+                  message: errorMsg
+                }, window.location.origin);
+              }
+              
               throw err;
             }
           }}
@@ -122,13 +135,29 @@ function PayPalCheckout({ uid, amount, bookingId }) {
               console.log("✅ Step 2 Complete - Payment captured:", res.data);
               setIsProcessing(false);
 
-              // Show success message
-              alert("✅ Payment successful! Transaction ID: " + data.orderID);
-
-              // Redirect if bookingId exists
-              if (bookingId) {
-                console.log("🔄 Redirecting to success page...");
-                router.push(`/booking/${bookingId}/success`);
+              // If in popup, send success message to parent window
+              if (isPopup && window.opener) {
+                window.opener.postMessage({
+                  type: 'PAYPAL_SUCCESS',
+                  bookingId: bookingId,
+                  transactionId: data.orderID
+                }, window.location.origin);
+                
+                // Show success message before closing
+                alert("✅ Payment successful! This window will close automatically.");
+                
+                // Close popup after short delay
+                setTimeout(() => {
+                  window.close();
+                }, 1500);
+              } else {
+                // Normal flow (not in popup)
+                alert("✅ Payment successful! Transaction ID: " + data.orderID);
+                
+                if (bookingId) {
+                  console.log("🔄 Redirecting to success page...");
+                  router.push(`/booking/${bookingId}/success`);
+                }
               }
             } catch (err) {
               console.error("❌ Step 2 Failed:", err);
@@ -139,13 +168,31 @@ function PayPalCheckout({ uid, amount, bookingId }) {
                 err.message ||
                 "Failed to capture payment";
               setError(errorMsg);
+              
+              // Send error to parent window if in popup
+              if (isPopup && window.opener) {
+                window.opener.postMessage({
+                  type: 'PAYPAL_ERROR',
+                  message: errorMsg
+                }, window.location.origin);
+              }
+              
               alert("❌ Payment capture failed: " + errorMsg);
             }
           }}
           onError={(err) => {
             console.error("❌ PayPal SDK Error:", err);
             setIsProcessing(false);
-            setError("PayPal error occurred. Please try again.");
+            const errorMsg = "PayPal error occurred. Please try again.";
+            setError(errorMsg);
+            
+            // Send error to parent window if in popup
+            if (isPopup && window.opener) {
+              window.opener.postMessage({
+                type: 'PAYPAL_ERROR',
+                message: errorMsg
+              }, window.location.origin);
+            }
           }}
           onCancel={(data) => {
             console.log(
@@ -153,7 +200,16 @@ function PayPalCheckout({ uid, amount, bookingId }) {
               data?.orderID
             );
             setIsProcessing(false);
-            setError("Payment was cancelled. Please try again when ready.");
+            const cancelMsg = "Payment was cancelled. Please try again when ready.";
+            setError(cancelMsg);
+            
+            // Send cancellation to parent window if in popup
+            if (isPopup && window.opener) {
+              window.opener.postMessage({
+                type: 'PAYPAL_CANCELLED',
+                message: cancelMsg
+              }, window.location.origin);
+            }
           }}
           onClick={(data, actions) => {
             console.log("👆 PayPal button clicked");
@@ -163,17 +219,19 @@ function PayPalCheckout({ uid, amount, bookingId }) {
         />
       </PayPalScriptProvider>
 
-      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
-        <strong>💡 Testing Tips:</strong>
-        <ul className="mt-2 space-y-1 list-disc list-inside">
-          <li>Use a PayPal Sandbox test account (not your real account)</li>
-          <li>
-            Create test accounts at: developer.paypal.com/dashboard/accounts
-          </li>
-          <li>Check the browser console for detailed logs</li>
-          <li>Make sure popup blockers are disabled</li>
-        </ul>
-      </div>
+      {!isPopup && (
+        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+          <strong>💡 Testing Tips:</strong>
+          <ul className="mt-2 space-y-1 list-disc list-inside">
+            <li>Use a PayPal Sandbox test account (not your real account)</li>
+            <li>
+              Create test accounts at: developer.paypal.com/dashboard/accounts
+            </li>
+            <li>Check the browser console for detailed logs</li>
+            <li>Make sure popup blockers are disabled</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

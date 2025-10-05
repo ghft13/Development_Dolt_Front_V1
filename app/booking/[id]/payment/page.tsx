@@ -6,7 +6,6 @@ import Header from "@/components/header"
 import { useAuth } from "@/contexts/auth-context"
 import { useBookings } from "@/contexts/booking-context"
 import { CreditCard, Building2, Loader2, Smartphone, Wallet, Bitcoin } from "lucide-react"
-import PayPalCheckout from "@/components/PayPalCheckout" // <-- import PayPal component
 
 type PaymentGateway = "stripe" | "razorpay" | "gpay" | "paypal" | "crypto"
 
@@ -34,6 +33,57 @@ export default function PaymentPage() {
     }
     setBooking(bookingData)
   }, [isAuthenticated, params.id, router, getBookingById])
+
+  const openPayPalWindow = () => {
+    if (!booking) return
+    
+    setSelectedGateway("paypal")
+    
+    // Create URL for PayPal checkout page with booking details
+    const paypalUrl = `/paypal-checkout?bookingId=${booking.id}&amount=${booking.total_amount}&userId=${booking.user_id}`
+    
+    // Open in new window with specific dimensions
+    const width = 600
+    const height = 700
+    const left = (window.screen.width - width) / 2
+    const top = (window.screen.height - height) / 2
+    
+    const paypalWindow = window.open(
+      paypalUrl,
+      'PayPal Checkout',
+      `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+    )
+
+    // Listen for messages from the popup window
+    const handleMessage = (event: MessageEvent) => {
+      // Verify origin for security
+      if (event.origin !== window.location.origin) return
+      
+      if (event.data.type === 'PAYPAL_SUCCESS') {
+        // Update booking status
+        updateBooking(booking.id, {
+          status: "confirmed",
+          payment_method: "paypal",
+          payment_status: "paid",
+        })
+        router.push(`/booking/${params.id}/success`)
+        window.removeEventListener('message', handleMessage)
+      } else if (event.data.type === 'PAYPAL_ERROR') {
+        setError(event.data.message || "Payment failed. Please try again.")
+        window.removeEventListener('message', handleMessage)
+      } else if (event.data.type === 'PAYPAL_CANCELLED') {
+        setError(event.data.message || "Payment was cancelled.")
+        window.removeEventListener('message', handleMessage)
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+
+    // Check if popup was blocked
+    if (!paypalWindow || paypalWindow.closed || typeof paypalWindow.closed === 'undefined') {
+      setError("Popup was blocked. Please allow popups for this site.")
+    }
+  }
 
   const handleOtherPayments = async () => {
     if (!booking) return
@@ -89,7 +139,11 @@ export default function PaymentPage() {
 
             <div className="space-y-4 mb-8">
               {/* Stripe */}
-              <button onClick={() => setSelectedGateway("stripe")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "stripe" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
+              <button 
+                onClick={() => setSelectedGateway("stripe")} 
+                disabled={isProcessing} 
+                className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "stripe" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
                 <div className="flex items-center gap-4">
                   <CreditCard className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -100,7 +154,11 @@ export default function PaymentPage() {
               </button>
 
               {/* Razorpay */}
-              <button onClick={() => setSelectedGateway("razorpay")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "razorpay" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
+              <button 
+                onClick={() => setSelectedGateway("razorpay")} 
+                disabled={isProcessing} 
+                className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "razorpay" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
                 <div className="flex items-center gap-4">
                   <Building2 className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -111,7 +169,11 @@ export default function PaymentPage() {
               </button>
 
               {/* Google Pay */}
-              <button onClick={() => setSelectedGateway("gpay")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "gpay" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
+              <button 
+                onClick={() => setSelectedGateway("gpay")} 
+                disabled={isProcessing} 
+                className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "gpay" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
                 <div className="flex items-center gap-4">
                   <Smartphone className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -121,8 +183,12 @@ export default function PaymentPage() {
                 </div>
               </button>
 
-              {/* PayPal */}
-              <button onClick={() => setSelectedGateway("paypal")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "paypal" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
+              {/* PayPal - Opens popup immediately */}
+              <button 
+                onClick={openPayPalWindow} 
+                disabled={isProcessing} 
+                className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "paypal" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
                 <div className="flex items-center gap-4">
                   <Wallet className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -133,7 +199,11 @@ export default function PaymentPage() {
               </button>
 
               {/* Cryptocurrency */}
-              <button onClick={() => setSelectedGateway("crypto")} disabled={isProcessing} className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "crypto" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}>
+              <button 
+                onClick={() => setSelectedGateway("crypto")} 
+                disabled={isProcessing} 
+                className={`w-full p-6 rounded-xl border-2 transition-all ${selectedGateway === "crypto" ? "border-[#FF6B35] bg-[#FF6B35]/5" : "border-neutral-300 hover:border-neutral-400"} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
                 <div className="flex items-center gap-4">
                   <Bitcoin className="w-8 h-8 text-[#FF6B35]" />
                   <div className="text-left">
@@ -143,16 +213,29 @@ export default function PaymentPage() {
                 </div>
               </button>
             </div>
-            {/* amount={booking.total_amount + 5} */}
 
-            {/* Pay Button / PayPal */}
-            {selectedGateway === "paypal" ? (
-              <PayPalCheckout uid={booking.user_id} amount={booking.total_amount}
-              bookingId={booking.id}  />
-            ) : (
-              <button onClick={handleOtherPayments} disabled={isProcessing} className="w-full px-8 py-4 bg-[#FF6B35] text-white font-medium rounded-full transition-all duration-300 hover:bg-[#ff5722] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                {isProcessing ? "Processing..." : `Pay with ${selectedGateway}`}
+            {/* Pay Button - Only for non-PayPal payments */}
+            {selectedGateway !== "paypal" && (
+              <button 
+                onClick={handleOtherPayments} 
+                disabled={isProcessing} 
+                className="w-full px-8 py-4 bg-[#FF6B35] text-white font-medium rounded-full transition-all duration-300 hover:bg-[#ff5722] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  `Pay with ${selectedGateway}`
+                )}
               </button>
+            )}
+
+            {selectedGateway === "paypal" && (
+              <div className="text-center p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-sm">
+                ℹ️ Click the PayPal option above to open the payment window
+              </div>
             )}
           </div>
         </div>
