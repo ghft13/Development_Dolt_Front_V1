@@ -110,7 +110,7 @@ export default function ServicesPage() {
             <h2 className="text-3xl font-bold mb-8">Available Services</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {services.map((service, index) => {
-                console.log(service.id,'serviceid')
+              
                 const Icon = iconMap[service.id] || Wrench
                 return (
                   <div

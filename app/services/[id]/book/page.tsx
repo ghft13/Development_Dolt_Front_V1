@@ -10,6 +10,7 @@ import { useBookings } from "@/contexts/booking-context"
 import { getCurrentLocation, geocodeAddress, type Coordinates } from "@/lib/geolocation"
 import { getServiceById } from "@/lib/services"
 import { MapPin, Calendar, FileText } from "lucide-react"
+import axios from "axios"
 
 export default function BookServicePage() {
   const params = useParams()
@@ -29,6 +30,11 @@ export default function BookServicePage() {
     scheduledTime: "",
     notes: "",
   })
+
+  const Backend_URL =
+    process.env.NODE_ENV === "production"
+      ? process.env.NEXT_PUBLIC_DEVELOPMENT_DEPLOYED_BACKEND_URL
+      : process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -65,52 +71,59 @@ export default function BookServicePage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsLoading(true)
+  setError("")
 
-    if (!user || !service) return
+  if (!user || !service) return
 
-    try {
-      let bookingCoords = coordinates
+  try {
+    let bookingCoords = coordinates
 
-      if (!useCurrentLocation && formData.address) {
-        const location = await geocodeAddress(formData.address)
-        bookingCoords = location.coordinates
-      }
-
-      const booking = {
-        id: `booking-${Date.now()}`,
-        user_id: user.id,
-        provider_id: undefined,
-        service_id: service.id,
-        status: "pending" as const,
-        scheduled_date: `${formData.scheduledDate}T${formData.scheduledTime}`,
-        completed_date: undefined,
-        address: formData.address,
-        latitude: bookingCoords?.latitude,
-        longitude: bookingCoords?.longitude,
-        notes: formData.notes,
-        total_amount: service.base_price,
-        currency: service.currency,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        service_title: service.title,
-        service_description: service.description,
-        user_name: user.name,
-        user_email: user.email,
-      }
-
-      addBooking(booking)
-
-      // Redirect to payment
-      router.push(`/booking/${booking.id}/payment`)
-    } catch (err) {
-      setError("Failed to create booking. Please try again.")
-      setIsLoading(false)
+    if (!useCurrentLocation && formData.address) {
+      const location = await geocodeAddress(formData.address)
+      bookingCoords = location.coordinates
     }
+
+    const booking = {
+      id: `booking-${Date.now()}`,
+      user_id: user.id,
+      provider_id: undefined,
+      service_id: service.id,
+      status: "pending" as const,
+      scheduled_date: `${formData.scheduledDate}T${formData.scheduledTime}`,
+      completed_date: undefined,
+      address: formData.address,
+      latitude: bookingCoords?.latitude,
+      longitude: bookingCoords?.longitude,
+      notes: formData.notes,
+      total_amount: service.base_price,
+      currency: service.currency,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      service_title: service.title,
+      service_description: service.description,
+      user_name: user.name,
+      user_email: user.email,
+    }
+
+    // ✅ Save booking in context
+    addBooking(booking)
+
+    // ✅ Save booking in localStorage
+    localStorage.setItem("bookingData", JSON.stringify(booking))
+
+    // ✅ Redirect to payment page
+    router.push(`/booking/${booking.id}/payment`)
+  } catch (err) {
+    console.error(err)
+    setError("Failed to create booking. Please try again.")
+  } finally {
+    setIsLoading(false)
   }
+}
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData((prev) => ({

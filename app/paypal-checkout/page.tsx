@@ -16,8 +16,6 @@ function PayPalCheckoutContent() {
     const amt = searchParams.get('amount')
     const uid = searchParams.get('userId')
     
-    console.log("PayPal Checkout Page - Params:", { id, amt, uid })
-    
     if (id && amt && uid) {
       setBookingId(id)
       setAmount(parseFloat(amt))

@@ -9,21 +9,24 @@ function PayPalCheckout({ uid, amount, bookingId }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+
   const Backend_URL =
     process.env.NODE_ENV === "production"
       ? process.env.NEXT_PUBLIC_DEVELOPMENT_DEPLOYED_BACKEND_URL
       : process.env.NEXT_PUBLIC_DEVELOPMENT_BACKEND_URL;
 
-  // Check if we're in a popup window
-  const isPopup = typeof window !== 'undefined' && window.opener && window.opener !== window;
+  // Check if window is popup
+  const isPopup =
+    typeof window !== "undefined" && window.opener && window.opener !== window;
 
-  console.log("🔧 PayPal Config:", {
+  console.log("🧠 [PayPalCheckout] Initialized with:", {
     uid,
     amount,
     bookingId,
     Backend_URL,
     isPopup,
-    clientId:
+    NODE_ENV: process.env.NODE_ENV,
+    paypalClientId:
       process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID?.substring(0, 10) + "...",
   });
 
@@ -47,9 +50,7 @@ function PayPalCheckout({ uid, amount, bookingId }) {
           clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
           currency: "USD",
           intent: "capture",
-          // Enable debug mode
           "enable-funding": "venmo,paylater",
-          "disable-funding": "",
           debug: true,
         }}
       >
@@ -62,7 +63,7 @@ function PayPalCheckout({ uid, amount, bookingId }) {
             height: 55,
           }}
           createOrder={async () => {
-            console.log("🚀 Step 1: Creating PayPal order...");
+            console.log("🚀 [createOrder] Starting order creation...");
             setError("");
             setIsProcessing(true);
 
@@ -72,147 +73,166 @@ function PayPalCheckout({ uid, amount, bookingId }) {
                   ? amount.toFixed(2)
                   : parseFloat(amount).toFixed(2);
 
-              console.log("💰 Amount:", amountStr);
+              console.log("💰 [createOrder] Final amount:", amountStr);
 
               const res = await axios.post(
                 `${Backend_URL}/paypal/create-order`,
                 { amount: amountStr },
                 {
                   headers: { "Content-Type": "application/json" },
-                  timeout: 10000,
+                  timeout: 15000,
                 }
               );
 
+              console.log("✅ [createOrder] Server Response:", res.data);
+
               if (!res.data?.id) {
+                console.error("❌ [createOrder] No order ID received");
                 throw new Error("No order ID received from server");
               }
 
-              console.log("✅ Step 1 Complete - Order ID:", res.data.id);
               setIsProcessing(false);
               return res.data.id;
             } catch (err) {
-              console.error("❌ Step 1 Failed:", err);
+              console.error("🔥 [createOrder] Error details:", {
+                message: err.message,
+                response: err.response?.data,
+                stack: err.stack,
+              });
+
               setIsProcessing(false);
               const errorMsg =
                 err.response?.data?.message ||
                 err.message ||
                 "Failed to create order";
               setError(errorMsg);
-              
-              // Send error to parent window if in popup
+
               if (isPopup && window.opener) {
-                window.opener.postMessage({
-                  type: 'PAYPAL_ERROR',
-                  message: errorMsg
-                }, window.location.origin);
+                console.log("📨 [createOrder] Sending PAYPAL_ERROR to parent window");
+                window.opener.postMessage(
+                  { type: "PAYPAL_ERROR", message: errorMsg },
+                  window.location.origin
+                );
               }
-              
               throw err;
             }
           }}
-          onApprove={async (data, actions) => {
-            console.log("🎉 Step 2: Payment approved! Order ID:", data.orderID);
-            console.log("📦 Approval data:", data);
 
+          onApprove={async (data, actions) => {
+            console.log("📦 [onApprove] Received PayPal data:", data);
             setError("");
             setIsProcessing(true);
 
             try {
-              console.log("📡 Capturing payment...");
-
+              console.log("📡 [onApprove] Capturing payment with backend...");
               const res = await axios.post(
                 `${Backend_URL}/paypal/capture-order`,
-                {
-                  orderId: data.orderID,
-                  uid,
-                },
+                { orderId: data.orderID, uid },
                 {
                   headers: { "Content-Type": "application/json" },
-                  timeout: 10000,
+                  timeout: 15000,
                 }
               );
 
-              console.log("✅ Step 2 Complete - Payment captured:", res.data);
+              console.log("✅ [onApprove] Capture Response:", res.data);
+
+              const bookingData = localStorage.getItem("bookingData");
+              console.log("🗂️ [onApprove] Local bookingData:", bookingData);
+
+              if (!bookingData) throw new Error("No booking data found");
+
+              const parsedBooking = JSON.parse(bookingData);
+              console.log("📤 [onApprove] Sending booking to backend:", parsedBooking);
+
+              const bookingRes = await axios.post(
+                `${Backend_URL}/api/bookings/createBooking`,
+                parsedBooking,
+                { headers: { "Content-Type": "application/json" } }
+              );
+
+              console.log("✅ [onApprove] Booking stored successfully:", bookingRes.data);
+
+              localStorage.removeItem("bookingData");
               setIsProcessing(false);
 
-              // If in popup, send success message to parent window
               if (isPopup && window.opener) {
-                window.opener.postMessage({
-                  type: 'PAYPAL_SUCCESS',
-                  bookingId: bookingId,
-                  transactionId: data.orderID
-                }, window.location.origin);
-                
-                // Show success message before closing
+                console.log("📨 [onApprove] Sending PAYPAL_SUCCESS to parent window");
+                window.opener.postMessage(
+                  {
+                    type: "PAYPAL_SUCCESS",
+                    bookingId,
+                    transactionId: data.orderID,
+                  },
+                  window.location.origin
+                );
                 alert("✅ Payment successful! This window will close automatically.");
-                
-                // Close popup after short delay
-                setTimeout(() => {
-                  window.close();
-                }, 1500);
+                setTimeout(() => window.close(), 1500);
               } else {
-                // Normal flow (not in popup)
                 alert("✅ Payment successful! Transaction ID: " + data.orderID);
-                
                 if (bookingId) {
-                  console.log("🔄 Redirecting to success page...");
+                  console.log("🔄 [onApprove] Redirecting to:", `/booking/${bookingId}/success`);
                   router.push(`/booking/${bookingId}/success`);
                 }
               }
             } catch (err) {
-              console.error("❌ Step 2 Failed:", err);
-              console.error("Error details:", err.response?.data);
+              console.error("🔥 [onApprove] Error details:", {
+                message: err.message,
+                response: err.response?.data,
+                stack: err.stack,
+              });
+
               setIsProcessing(false);
               const errorMsg =
                 err.response?.data?.message ||
                 err.message ||
-                "Failed to capture payment";
+                "Failed to process payment or booking";
+
               setError(errorMsg);
-              
-              // Send error to parent window if in popup
+
               if (isPopup && window.opener) {
-                window.opener.postMessage({
-                  type: 'PAYPAL_ERROR',
-                  message: errorMsg
-                }, window.location.origin);
+                console.log("📨 [onApprove] Sending PAYPAL_ERROR to parent window");
+                window.opener.postMessage(
+                  { type: "PAYPAL_ERROR", message: errorMsg },
+                  window.location.origin
+                );
               }
-              
-              alert("❌ Payment capture failed: " + errorMsg);
+
+              alert("❌ Something went wrong: " + errorMsg);
             }
           }}
+
           onError={(err) => {
-            console.error("❌ PayPal SDK Error:", err);
+            console.error("⚠️ [PayPalButtons] SDK Error:", err);
             setIsProcessing(false);
             const errorMsg = "PayPal error occurred. Please try again.";
             setError(errorMsg);
-            
-            // Send error to parent window if in popup
+
             if (isPopup && window.opener) {
-              window.opener.postMessage({
-                type: 'PAYPAL_ERROR',
-                message: errorMsg
-              }, window.location.origin);
+              console.log("📨 [onError] Sending PAYPAL_ERROR to parent window");
+              window.opener.postMessage(
+                { type: "PAYPAL_ERROR", message: errorMsg },
+                window.location.origin
+              );
             }
           }}
+
           onCancel={(data) => {
-            console.log(
-              "⚠️ Payment cancelled by user. Order ID:",
-              data?.orderID
-            );
+            console.log("🚫 [onCancel] Payment cancelled:", data);
             setIsProcessing(false);
-            const cancelMsg = "Payment was cancelled. Please try again when ready.";
+            const cancelMsg = "Payment was cancelled by user.";
             setError(cancelMsg);
-            
-            // Send cancellation to parent window if in popup
+
             if (isPopup && window.opener) {
-              window.opener.postMessage({
-                type: 'PAYPAL_CANCELLED',
-                message: cancelMsg
-              }, window.location.origin);
+              console.log("📨 [onCancel] Sending PAYPAL_CANCELLED to parent window");
+              window.opener.postMessage(
+                { type: "PAYPAL_CANCELLED", message: cancelMsg },
+                window.location.origin
+              );
             }
           }}
+
           onClick={(data, actions) => {
-            console.log("👆 PayPal button clicked");
+            console.log("👆 [onClick] PayPal button clicked:", data);
             setError("");
             return actions.resolve();
           }}
@@ -223,12 +243,9 @@ function PayPalCheckout({ uid, amount, bookingId }) {
         <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
           <strong>💡 Testing Tips:</strong>
           <ul className="mt-2 space-y-1 list-disc list-inside">
-            <li>Use a PayPal Sandbox test account (not your real account)</li>
-            <li>
-              Create test accounts at: developer.paypal.com/dashboard/accounts
-            </li>
-            <li>Check the browser console for detailed logs</li>
-            <li>Make sure popup blockers are disabled</li>
+            <li>Use a PayPal Sandbox test account</li>
+            <li>Check browser console for detailed logs (look for [PayPalCheckout])</li>
+            <li>Ensure backend server is reachable at {Backend_URL}</li>
           </ul>
         </div>
       )}

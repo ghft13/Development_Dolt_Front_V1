@@ -25,6 +25,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
   const pathname = usePathname()
 
+  console.log(user)
+
   if (!user) return null
 
   const getNavItems = () => {
@@ -77,7 +79,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Link>
           <div className="mt-4">
             <div className="text-sm text-neutral-400">Welcome back,</div>
-            <div className="font-medium">{user.full_name}</div>
+            <div className="font-medium">{user.fullName}</div>
             <div className="text-xs text-neutral-500 mt-1 capitalize">{user.role}</div>
           </div>
         </div>
